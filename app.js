@@ -908,64 +908,7 @@ function hideTestSheet() {
 }
 
 /**
- * 모바일 기기 감지
- * @returns {boolean} 모바일 여부
- */
-function isMobile() {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-        || window.innerWidth < 768;
-}
-
-/**
- * PDF용 시험지 HTML 생성 (인라인 스타일 포함)
- * @param {Object} testSheet - 시험지 데이터
- * @returns {HTMLElement} PDF용 요소
- */
-function createPdfElement(testSheet) {
-    const container = document.createElement('div');
-
-    // 모든 스타일을 인라인으로 직접 지정
-    container.innerHTML = `
-        <div style="background-color: #ffffff; color: #000000; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-            <div style="text-align: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #333333;">
-                <h3 style="font-size: 1.75rem; font-weight: 700; margin: 0 0 8px 0; color: #000000;">${testSheet.title}</h3>
-                <div style="display: flex; justify-content: center; gap: 24px; font-size: 0.875rem; color: #666666; margin-bottom: 16px;">
-                    <span>날짜: ${testSheet.date}</span>
-                    <span>총 ${testSheet.totalCount}문제</span>
-                </div>
-                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; font-size: 1rem; margin-top: 16px;">
-                    <span>이름:</span>
-                    <span style="display: inline-block; width: 150px; border-bottom: 1px solid #333333;"></span>
-                </div>
-            </div>
-            <div style="margin-bottom: 24px;">
-                <table style="width: 100%; border-collapse: collapse; font-size: 1rem;">
-                    <thead>
-                        <tr>
-                            <th style="border: 1px solid #dddddd; padding: 8px 16px; text-align: center; background-color: #f5f5f5; font-weight: 600; color: #333333; width: 60px;">번호</th>
-                            <th style="border: 1px solid #dddddd; padding: 8px 16px; text-align: left; background-color: #f5f5f5; font-weight: 600; color: #333333; width: 40%;">영어 단어</th>
-                            <th style="border: 1px solid #dddddd; padding: 8px 16px; text-align: left; background-color: #f5f5f5; font-weight: 600; color: #333333;">뜻 (한국어)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${testSheet.words.map((item, index) => `
-                            <tr>
-                                <td style="border: 1px solid #dddddd; padding: 8px 16px; text-align: center; background-color: ${index % 2 === 0 ? '#ffffff' : '#fafafa'}; font-weight: 500; color: #666666;">${item.number}</td>
-                                <td style="border: 1px solid #dddddd; padding: 8px 16px; text-align: left; background-color: ${index % 2 === 0 ? '#ffffff' : '#fafafa'}; font-weight: 600; color: #000000;">${escapeHtml(item.english)}</td>
-                                <td style="border: 1px solid #dddddd; padding: 8px 16px; text-align: left; background-color: ${index % 2 === 0 ? '#ffffff' : '#fafafa'}; min-height: 28px;"></td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    `;
-
-    return container.firstElementChild;
-}
-
-/**
- * PDF 다운로드 핸들러
+ * PDF 다운로드 핸들러 (jsPDF + autoTable 사용)
  */
 async function handleDownloadPdf() {
     if (!state.generatedTest) {
@@ -977,44 +920,69 @@ async function handleDownloadPdf() {
     showLoading('PDF 생성 중...');
 
     try {
-        // PDF용 별도 요소 생성 (인라인 스타일 포함)
-        const pdfElement = createPdfElement(state.generatedTest);
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+        });
 
-        // 화면 밖에 임시로 추가 (렌더링 필요)
-        pdfElement.style.position = 'absolute';
-        pdfElement.style.left = '-9999px';
-        pdfElement.style.top = '0';
-        document.body.appendChild(pdfElement);
+        const testSheet = state.generatedTest;
+        const pageWidth = doc.internal.pageSize.getWidth();
 
-        // 모바일에서는 scale을 낮춰 메모리 문제 방지
-        const scale = isMobile() ? 2 : 3;
+        // 제목
+        doc.setFontSize(20);
+        doc.setFont(undefined, 'bold');
+        doc.text(testSheet.title, pageWidth / 2, 20, { align: 'center' });
 
-        // PDF 옵션 설정 (A4)
-        const opt = {
-            margin: [15, 15, 15, 15],
-            filename: `영어단어시험지_${getTimestamp()}.pdf`,
-            image: { type: 'jpeg', quality: 0.95 },
-            html2canvas: {
-                scale: scale,
-                useCORS: true,
-                letterRendering: true,
-                backgroundColor: '#ffffff',
-                logging: false,
-                windowWidth: 800
+        // 날짜 및 문제 수
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        doc.text(`날짜: ${testSheet.date}    총 ${testSheet.totalCount}문제`, pageWidth / 2, 28, { align: 'center' });
+
+        // 이름 필드
+        doc.setFontSize(12);
+        doc.text('이름:', pageWidth - 60, 38);
+        doc.line(pageWidth - 50, 38, pageWidth - 15, 38);
+
+        // 테이블 데이터 준비
+        const tableData = testSheet.words.map(item => [
+            item.number.toString(),
+            item.english,
+            '' // 빈 답안 칸
+        ]);
+
+        // autoTable로 테이블 생성
+        doc.autoTable({
+            startY: 45,
+            head: [['번호', '영어 단어', '뜻 (한국어)']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: {
+                fillColor: [245, 245, 245],
+                textColor: [51, 51, 51],
+                fontStyle: 'bold',
+                halign: 'center'
             },
-            jsPDF: {
-                unit: 'mm',
-                format: 'a4',
-                orientation: 'portrait'
+            columnStyles: {
+                0: { cellWidth: 15, halign: 'center' },
+                1: { cellWidth: 60 },
+                2: { cellWidth: 'auto' }
             },
-            pagebreak: { mode: 'avoid-all' }
-        };
+            styles: {
+                fontSize: 11,
+                cellPadding: 4,
+                lineColor: [200, 200, 200],
+                lineWidth: 0.3
+            },
+            alternateRowStyles: {
+                fillColor: [250, 250, 250]
+            },
+            margin: { left: 15, right: 15 }
+        });
 
-        // PDF 생성 및 다운로드
-        await html2pdf().set(opt).from(pdfElement).save();
-
-        // 임시 요소 제거
-        document.body.removeChild(pdfElement);
+        // PDF 다운로드
+        doc.save(`영어단어시험지_${getTimestamp()}.pdf`);
 
         // 성공 알림
         showToast('PDF가 성공적으로 다운로드되었습니다.', 'success');
