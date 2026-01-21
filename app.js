@@ -917,127 +917,51 @@ function isMobile() {
 }
 
 /**
- * PDF용 인라인 스타일 적용 (모바일 호환성)
- * @param {HTMLElement} element - 스타일 적용할 요소
+ * PDF용 시험지 HTML 생성 (인라인 스타일 포함)
+ * @param {Object} testSheet - 시험지 데이터
+ * @returns {HTMLElement} PDF용 요소
  */
-function applyInlineStylesForPdf(element) {
-    // 시험지 전체
-    element.style.backgroundColor = '#ffffff';
-    element.style.color = '#000000';
-    element.style.padding = '24px';
-    element.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+function createPdfElement(testSheet) {
+    const container = document.createElement('div');
 
-    // 헤더
-    const header = element.querySelector('.test-sheet__header');
-    if (header) {
-        header.style.textAlign = 'center';
-        header.style.marginBottom = '24px';
-        header.style.paddingBottom = '16px';
-        header.style.borderBottom = '2px solid #333333';
-    }
+    // 모든 스타일을 인라인으로 직접 지정
+    container.innerHTML = `
+        <div style="background-color: #ffffff; color: #000000; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+            <div style="text-align: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #333333;">
+                <h3 style="font-size: 1.75rem; font-weight: 700; margin: 0 0 8px 0; color: #000000;">${testSheet.title}</h3>
+                <div style="display: flex; justify-content: center; gap: 24px; font-size: 0.875rem; color: #666666; margin-bottom: 16px;">
+                    <span>날짜: ${testSheet.date}</span>
+                    <span>총 ${testSheet.totalCount}문제</span>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; font-size: 1rem; margin-top: 16px;">
+                    <span>이름:</span>
+                    <span style="display: inline-block; width: 150px; border-bottom: 1px solid #333333;"></span>
+                </div>
+            </div>
+            <div style="margin-bottom: 24px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 1rem;">
+                    <thead>
+                        <tr>
+                            <th style="border: 1px solid #dddddd; padding: 8px 16px; text-align: center; background-color: #f5f5f5; font-weight: 600; color: #333333; width: 60px;">번호</th>
+                            <th style="border: 1px solid #dddddd; padding: 8px 16px; text-align: left; background-color: #f5f5f5; font-weight: 600; color: #333333; width: 40%;">영어 단어</th>
+                            <th style="border: 1px solid #dddddd; padding: 8px 16px; text-align: left; background-color: #f5f5f5; font-weight: 600; color: #333333;">뜻 (한국어)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${testSheet.words.map((item, index) => `
+                            <tr>
+                                <td style="border: 1px solid #dddddd; padding: 8px 16px; text-align: center; background-color: ${index % 2 === 0 ? '#ffffff' : '#fafafa'}; font-weight: 500; color: #666666;">${item.number}</td>
+                                <td style="border: 1px solid #dddddd; padding: 8px 16px; text-align: left; background-color: ${index % 2 === 0 ? '#ffffff' : '#fafafa'}; font-weight: 600; color: #000000;">${escapeHtml(item.english)}</td>
+                                <td style="border: 1px solid #dddddd; padding: 8px 16px; text-align: left; background-color: ${index % 2 === 0 ? '#ffffff' : '#fafafa'}; min-height: 28px;"></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
 
-    // 제목
-    const title = element.querySelector('.test-sheet__title');
-    if (title) {
-        title.style.fontSize = '1.75rem';
-        title.style.fontWeight = '700';
-        title.style.marginBottom = '8px';
-        title.style.color = '#000000';
-    }
-
-    // 정보
-    const info = element.querySelector('.test-sheet__info');
-    if (info) {
-        info.style.display = 'flex';
-        info.style.justifyContent = 'center';
-        info.style.gap = '24px';
-        info.style.fontSize = '0.875rem';
-        info.style.color = '#666666';
-        info.style.marginBottom = '16px';
-    }
-
-    // 이름 필드
-    const nameField = element.querySelector('.test-sheet__name-field');
-    if (nameField) {
-        nameField.style.display = 'flex';
-        nameField.style.alignItems = 'center';
-        nameField.style.justifyContent = 'flex-end';
-        nameField.style.gap = '8px';
-        nameField.style.fontSize = '1rem';
-        nameField.style.marginTop = '16px';
-    }
-
-    const nameLine = element.querySelector('.test-sheet__name-line');
-    if (nameLine) {
-        nameLine.style.display = 'inline-block';
-        nameLine.style.width = '150px';
-        nameLine.style.borderBottom = '1px solid #333333';
-    }
-
-    // 테이블
-    const table = element.querySelector('.test-sheet__table');
-    if (table) {
-        table.style.width = '100%';
-        table.style.borderCollapse = 'collapse';
-        table.style.fontSize = '1rem';
-    }
-
-    // 테이블 헤더/셀
-    const thCells = element.querySelectorAll('.test-sheet__table th');
-    thCells.forEach(th => {
-        th.style.border = '1px solid #dddddd';
-        th.style.padding = '8px 16px';
-        th.style.textAlign = 'left';
-        th.style.backgroundColor = '#f5f5f5';
-        th.style.fontWeight = '600';
-        th.style.color = '#333333';
-    });
-
-    const tdCells = element.querySelectorAll('.test-sheet__table td');
-    tdCells.forEach(td => {
-        td.style.border = '1px solid #dddddd';
-        td.style.padding = '8px 16px';
-        td.style.textAlign = 'left';
-        td.style.backgroundColor = '#ffffff';
-    });
-
-    // 번호 열
-    const numbers = element.querySelectorAll('.test-sheet__number');
-    numbers.forEach(num => {
-        num.style.textAlign = 'center';
-        num.style.fontWeight = '500';
-        num.style.color = '#666666';
-    });
-
-    // 영어 열
-    const englishCells = element.querySelectorAll('.test-sheet__english');
-    englishCells.forEach(cell => {
-        cell.style.fontWeight = '600';
-        cell.style.color = '#000000';
-    });
-
-    // 답안 열
-    const answerCells = element.querySelectorAll('.test-sheet__answer');
-    answerCells.forEach(cell => {
-        cell.style.minHeight = '28px';
-    });
-
-    // 짝수 행 배경색
-    const rows = element.querySelectorAll('.test-sheet__row');
-    rows.forEach((row, index) => {
-        if (index % 2 === 1) {
-            const tds = row.querySelectorAll('td');
-            tds.forEach(td => {
-                td.style.backgroundColor = '#fafafa';
-            });
-        }
-    });
-
-    // 버튼 영역 숨기기
-    const actions = element.querySelector('.test-sheet__actions');
-    if (actions) {
-        actions.style.display = 'none';
-    }
+    return container.firstElementChild;
 }
 
 /**
@@ -1049,25 +973,25 @@ async function handleDownloadPdf() {
         return;
     }
 
-    const element = document.querySelector('.test-sheet');
-    if (!element) {
-        showToast('시험지를 찾을 수 없습니다.', 'error');
-        return;
-    }
-
     // 로딩 표시
     showLoading('PDF 생성 중...');
 
     try {
-        // 모바일 호환성을 위해 인라인 스타일 적용
-        applyInlineStylesForPdf(element);
+        // PDF용 별도 요소 생성 (인라인 스타일 포함)
+        const pdfElement = createPdfElement(state.generatedTest);
+
+        // 화면 밖에 임시로 추가 (렌더링 필요)
+        pdfElement.style.position = 'absolute';
+        pdfElement.style.left = '-9999px';
+        pdfElement.style.top = '0';
+        document.body.appendChild(pdfElement);
 
         // 모바일에서는 scale을 낮춰 메모리 문제 방지
         const scale = isMobile() ? 2 : 3;
 
         // PDF 옵션 설정 (A4)
         const opt = {
-            margin: [15, 15, 15, 15], // 상, 우, 하, 좌 여백 (mm)
+            margin: [15, 15, 15, 15],
             filename: `영어단어시험지_${getTimestamp()}.pdf`,
             image: { type: 'jpeg', quality: 0.95 },
             html2canvas: {
@@ -1076,7 +1000,7 @@ async function handleDownloadPdf() {
                 letterRendering: true,
                 backgroundColor: '#ffffff',
                 logging: false,
-                windowWidth: 800 // 고정 너비로 일관된 렌더링
+                windowWidth: 800
             },
             jsPDF: {
                 unit: 'mm',
@@ -1087,7 +1011,10 @@ async function handleDownloadPdf() {
         };
 
         // PDF 생성 및 다운로드
-        await html2pdf().set(opt).from(element).save();
+        await html2pdf().set(opt).from(pdfElement).save();
+
+        // 임시 요소 제거
+        document.body.removeChild(pdfElement);
 
         // 성공 알림
         showToast('PDF가 성공적으로 다운로드되었습니다.', 'success');
