@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="영어 단어 시험지 생성 앱">
+    <meta name="theme-color" content="#4f46e5">
+    <title>영어 단어 시험지 생성기</title>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- html2pdf.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <h1 class="header__title">영어 단어 시험지 생성기</h1>
+            <button id="theme-toggle" class="btn btn--icon" aria-label="테마 변경">
+                <span class="icon-light">☀️</span>
+                <span class="icon-dark">🌙</span>
+            </button>
+        </header>
+
+        <main class="main">
+            <!-- Word Input Form Section -->
+            <section class="section section--form" aria-labelledby="form-title">
+                <h2 id="form-title" class="section__title">단어 추가</h2>
+                <form id="word-form" class="word-form">
+                    <div class="form-group">
+                        <label for="word-english" class="form-label">영어 단어</label>
+                        <div class="input-with-button">
+                            <input type="text" id="word-english" name="english" class="form-input"
+                                placeholder="English word" required maxlength="100">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="word-korean" class="form-label">한국어 뜻</label>
+                        <input type="text" id="word-korean" name="korean" class="form-input" placeholder="한국어 뜻"
+                            required maxlength="200">
+                    </div>
+                    <button type="submit" class="btn btn--primary">단어 추가</button>
+                </form>
+            </section>
+
+            <!-- Filter Section -->
+            <section class="section section--filter" aria-labelledby="filter-title">
+                <h2 id="filter-title" class="section__title">필터</h2>
+
+                <!-- Category Filter Tabs -->
+                <div class="filter-tabs" role="tablist" aria-label="카테고리 필터">
+                    <button class="filter-tab filter-tab--active" data-category="all" role="tab" aria-selected="true">
+                        전체 단어
+                    </button>
+                    <button class="filter-tab" data-category="mastered" role="tab" aria-selected="false">
+                        완벽하게 외운 단어
+                    </button>
+                    <button class="filter-tab" data-category="learning" role="tab" aria-selected="false">
+                        헷갈리는 단어
+                    </button>
+                </div>
+
+                <!-- Date Filter -->
+                <div class="filter-controls">
+                    <div class="form-group">
+                        <label for="filter-date" class="form-label">추가된 날짜</label>
+                        <select id="filter-date" class="form-select">
+                            <option value="all">전체 날짜</option>
+                            <!-- 동적으로 날짜 옵션이 추가됨 -->
+                        </select>
+                    </div>
+                    <button id="reset-filter" class="btn btn--outline">전체 보기</button>
+                </div>
+
+                <!-- Filter Status -->
+                <div id="filter-status" class="filter-status">
+                    <span class="filter-status__text">전체 단어</span>
+                    <span class="filter-status__count">0개</span>
+                </div>
+            </section>
+
+            <!-- Word List Section -->
+            <section class="section section--list" aria-labelledby="list-title">
+                <h2 id="list-title" class="section__title">
+                    단어 목록
+                    <span id="word-count" class="badge">0</span>
+                </h2>
+                <div id="word-list" class="word-list">
+                    <p class="empty-message">등록된 단어가 없습니다.</p>
+                </div>
+            </section>
+
+            <!-- Test Generation Section -->
+            <section class="section section--generate" aria-labelledby="generate-title">
+                <h2 id="generate-title" class="section__title">시험지 생성</h2>
+                <p class="section__description">
+                    현재 필터된 단어들로 랜덤 순서의 시험지를 생성합니다.<br>
+                    매번 생성할 때마다 단어 순서가 무작위로 섞입니다.
+                </p>
+                <div class="generate-actions">
+                    <button id="generate-test" class="btn btn--primary btn--large">시험지 생성</button>
+                    <button id="download-pdf" class="btn btn--secondary btn--large" disabled>PDF 다운로드</button>
+                </div>
+            </section>
+
+            <!-- Test Preview Section -->
+            <section class="section section--preview" aria-labelledby="preview-title">
+                <h2 id="preview-title" class="section__title">시험지 미리보기</h2>
+                <div id="test-preview" class="test-preview">
+                    <p class="empty-message">시험지를 생성해주세요.</p>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2024 영어 단어 시험지 생성기</p>
+        </footer>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" hidden>
+        <div class="loading-spinner"></div>
+        <p class="loading-text">PDF 생성 중...</p>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
