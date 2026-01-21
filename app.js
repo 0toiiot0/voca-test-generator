@@ -908,6 +908,139 @@ function hideTestSheet() {
 }
 
 /**
+ * 모바일 기기 감지
+ * @returns {boolean} 모바일 여부
+ */
+function isMobile() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+        || window.innerWidth < 768;
+}
+
+/**
+ * PDF용 인라인 스타일 적용 (모바일 호환성)
+ * @param {HTMLElement} element - 스타일 적용할 요소
+ */
+function applyInlineStylesForPdf(element) {
+    // 시험지 전체
+    element.style.backgroundColor = '#ffffff';
+    element.style.color = '#000000';
+    element.style.padding = '24px';
+    element.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
+    // 헤더
+    const header = element.querySelector('.test-sheet__header');
+    if (header) {
+        header.style.textAlign = 'center';
+        header.style.marginBottom = '24px';
+        header.style.paddingBottom = '16px';
+        header.style.borderBottom = '2px solid #333333';
+    }
+
+    // 제목
+    const title = element.querySelector('.test-sheet__title');
+    if (title) {
+        title.style.fontSize = '1.75rem';
+        title.style.fontWeight = '700';
+        title.style.marginBottom = '8px';
+        title.style.color = '#000000';
+    }
+
+    // 정보
+    const info = element.querySelector('.test-sheet__info');
+    if (info) {
+        info.style.display = 'flex';
+        info.style.justifyContent = 'center';
+        info.style.gap = '24px';
+        info.style.fontSize = '0.875rem';
+        info.style.color = '#666666';
+        info.style.marginBottom = '16px';
+    }
+
+    // 이름 필드
+    const nameField = element.querySelector('.test-sheet__name-field');
+    if (nameField) {
+        nameField.style.display = 'flex';
+        nameField.style.alignItems = 'center';
+        nameField.style.justifyContent = 'flex-end';
+        nameField.style.gap = '8px';
+        nameField.style.fontSize = '1rem';
+        nameField.style.marginTop = '16px';
+    }
+
+    const nameLine = element.querySelector('.test-sheet__name-line');
+    if (nameLine) {
+        nameLine.style.display = 'inline-block';
+        nameLine.style.width = '150px';
+        nameLine.style.borderBottom = '1px solid #333333';
+    }
+
+    // 테이블
+    const table = element.querySelector('.test-sheet__table');
+    if (table) {
+        table.style.width = '100%';
+        table.style.borderCollapse = 'collapse';
+        table.style.fontSize = '1rem';
+    }
+
+    // 테이블 헤더/셀
+    const thCells = element.querySelectorAll('.test-sheet__table th');
+    thCells.forEach(th => {
+        th.style.border = '1px solid #dddddd';
+        th.style.padding = '8px 16px';
+        th.style.textAlign = 'left';
+        th.style.backgroundColor = '#f5f5f5';
+        th.style.fontWeight = '600';
+        th.style.color = '#333333';
+    });
+
+    const tdCells = element.querySelectorAll('.test-sheet__table td');
+    tdCells.forEach(td => {
+        td.style.border = '1px solid #dddddd';
+        td.style.padding = '8px 16px';
+        td.style.textAlign = 'left';
+        td.style.backgroundColor = '#ffffff';
+    });
+
+    // 번호 열
+    const numbers = element.querySelectorAll('.test-sheet__number');
+    numbers.forEach(num => {
+        num.style.textAlign = 'center';
+        num.style.fontWeight = '500';
+        num.style.color = '#666666';
+    });
+
+    // 영어 열
+    const englishCells = element.querySelectorAll('.test-sheet__english');
+    englishCells.forEach(cell => {
+        cell.style.fontWeight = '600';
+        cell.style.color = '#000000';
+    });
+
+    // 답안 열
+    const answerCells = element.querySelectorAll('.test-sheet__answer');
+    answerCells.forEach(cell => {
+        cell.style.minHeight = '28px';
+    });
+
+    // 짝수 행 배경색
+    const rows = element.querySelectorAll('.test-sheet__row');
+    rows.forEach((row, index) => {
+        if (index % 2 === 1) {
+            const tds = row.querySelectorAll('td');
+            tds.forEach(td => {
+                td.style.backgroundColor = '#fafafa';
+            });
+        }
+    });
+
+    // 버튼 영역 숨기기
+    const actions = element.querySelector('.test-sheet__actions');
+    if (actions) {
+        actions.style.display = 'none';
+    }
+}
+
+/**
  * PDF 다운로드 핸들러
  */
 async function handleDownloadPdf() {
@@ -926,15 +1059,24 @@ async function handleDownloadPdf() {
     showLoading('PDF 생성 중...');
 
     try {
-        // PDF 옵션 설정 (A4, 300 DPI)
+        // 모바일 호환성을 위해 인라인 스타일 적용
+        applyInlineStylesForPdf(element);
+
+        // 모바일에서는 scale을 낮춰 메모리 문제 방지
+        const scale = isMobile() ? 2 : 3;
+
+        // PDF 옵션 설정 (A4)
         const opt = {
             margin: [15, 15, 15, 15], // 상, 우, 하, 좌 여백 (mm)
             filename: `영어단어시험지_${getTimestamp()}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
+            image: { type: 'jpeg', quality: 0.95 },
             html2canvas: {
-                scale: 3, // 고해상도 (약 300 DPI)
+                scale: scale,
                 useCORS: true,
-                letterRendering: true
+                letterRendering: true,
+                backgroundColor: '#ffffff',
+                logging: false,
+                windowWidth: 800 // 고정 너비로 일관된 렌더링
             },
             jsPDF: {
                 unit: 'mm',
@@ -950,6 +1092,7 @@ async function handleDownloadPdf() {
         // 성공 알림
         showToast('PDF가 성공적으로 다운로드되었습니다.', 'success');
     } catch (error) {
+        console.error('PDF 생성 오류:', error);
         showToast('PDF 생성에 실패했습니다. 다시 시도해주세요.', 'error');
     } finally {
         // 로딩 숨기기
