@@ -908,9 +908,9 @@ function hideTestSheet() {
 }
 
 /**
- * PDF 다운로드 핸들러 (jsPDF + autoTable 사용)
+ * PDF 다운로드 핸들러 (순수 jsPDF 사용)
  */
-async function handleDownloadPdf() {
+function handleDownloadPdf() {
     if (!state.generatedTest) {
         showToast('먼저 시험지를 생성해주세요.', 'warning');
         return;
@@ -921,64 +921,83 @@ async function handleDownloadPdf() {
 
     try {
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4'
-        });
+        const doc = new jsPDF('p', 'mm', 'a4');
 
         const testSheet = state.generatedTest;
-        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageWidth = 210; // A4 width in mm
+        const pageHeight = 297; // A4 height in mm
+        const margin = 15;
+        const colWidths = [15, 55, 110]; // 번호, 영어, 뜻
+        const rowHeight = 10;
 
-        // 제목 (영어로 표시)
-        doc.setFontSize(20);
+        let y = 20;
+
+        // 제목
+        doc.setFontSize(18);
         doc.setFont('helvetica', 'bold');
-        doc.text('English Vocabulary Test', pageWidth / 2, 20, { align: 'center' });
+        doc.text('English Vocabulary Test', pageWidth / 2, y, { align: 'center' });
 
         // 날짜 및 문제 수
+        y += 10;
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Date: ${testSheet.date}    Total: ${testSheet.totalCount} words`, pageWidth / 2, 28, { align: 'center' });
+        doc.text(`Date: ${testSheet.date}    Total: ${testSheet.totalCount} words`, pageWidth / 2, y, { align: 'center' });
 
         // 이름 필드
-        doc.setFontSize(12);
-        doc.text('Name:', pageWidth - 60, 38);
-        doc.line(pageWidth - 45, 38, pageWidth - 15, 38);
+        y += 8;
+        doc.setFontSize(11);
+        doc.text('Name: _______________________', pageWidth - margin - 60, y);
 
-        // 테이블 데이터 준비
-        const tableData = testSheet.words.map(item => [
-            item.number.toString(),
-            item.english,
-            '' // 빈 답안 칸
-        ]);
+        // 테이블 시작
+        y += 10;
+        const tableStartX = margin;
 
-        // autoTable로 테이블 생성
-        doc.autoTable({
-            startY: 45,
-            head: [['No.', 'English', 'Korean Meaning']],
-            body: tableData,
-            theme: 'grid',
-            headStyles: {
-                fillColor: [245, 245, 245],
-                textColor: [51, 51, 51],
-                fontStyle: 'bold',
-                halign: 'center'
-            },
-            columnStyles: {
-                0: { cellWidth: 15, halign: 'center' },
-                1: { cellWidth: 60 },
-                2: { cellWidth: 'auto' }
-            },
-            styles: {
-                fontSize: 11,
-                cellPadding: 4,
-                lineColor: [200, 200, 200],
-                lineWidth: 0.3
-            },
-            alternateRowStyles: {
-                fillColor: [250, 250, 250]
-            },
-            margin: { left: 15, right: 15 }
+        // 테이블 헤더
+        doc.setFillColor(240, 240, 240);
+        doc.rect(tableStartX, y, colWidths[0] + colWidths[1] + colWidths[2], rowHeight, 'F');
+        doc.setDrawColor(180, 180, 180);
+        doc.rect(tableStartX, y, colWidths[0] + colWidths[1] + colWidths[2], rowHeight, 'S');
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('No.', tableStartX + colWidths[0] / 2, y + 7, { align: 'center' });
+        doc.text('English', tableStartX + colWidths[0] + 5, y + 7);
+        doc.text('Korean Meaning', tableStartX + colWidths[0] + colWidths[1] + 5, y + 7);
+
+        // 세로선
+        doc.line(tableStartX + colWidths[0], y, tableStartX + colWidths[0], y + rowHeight);
+        doc.line(tableStartX + colWidths[0] + colWidths[1], y, tableStartX + colWidths[0] + colWidths[1], y + rowHeight);
+
+        y += rowHeight;
+
+        // 테이블 데이터
+        doc.setFont('helvetica', 'normal');
+        testSheet.words.forEach((item, index) => {
+            // 페이지 넘김 체크
+            if (y + rowHeight > pageHeight - margin) {
+                doc.addPage();
+                y = margin;
+            }
+
+            // 짝수 행 배경
+            if (index % 2 === 1) {
+                doc.setFillColor(250, 250, 250);
+                doc.rect(tableStartX, y, colWidths[0] + colWidths[1] + colWidths[2], rowHeight, 'F');
+            }
+
+            // 테두리
+            doc.setDrawColor(200, 200, 200);
+            doc.rect(tableStartX, y, colWidths[0] + colWidths[1] + colWidths[2], rowHeight, 'S');
+
+            // 세로선
+            doc.line(tableStartX + colWidths[0], y, tableStartX + colWidths[0], y + rowHeight);
+            doc.line(tableStartX + colWidths[0] + colWidths[1], y, tableStartX + colWidths[0] + colWidths[1], y + rowHeight);
+
+            // 텍스트
+            doc.text(item.number.toString(), tableStartX + colWidths[0] / 2, y + 7, { align: 'center' });
+            doc.text(item.english, tableStartX + colWidths[0] + 3, y + 7);
+
+            y += rowHeight;
         });
 
         // PDF 다운로드
