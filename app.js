@@ -907,6 +907,37 @@ function hideTestSheet() {
     state.generatedTest = null;
 }
 
+// 한글 폰트 로드 상태
+let koreanFontLoaded = false;
+let koreanFontData = null;
+
+/**
+ * 한글 폰트 로드 (Noto Sans KR)
+ */
+async function loadKoreanFont() {
+    if (koreanFontLoaded) return true;
+
+    try {
+        // Google Fonts에서 Noto Sans KR 폰트 로드
+        const fontUrl = 'https://fonts.gstatic.com/s/notosanskr/v36/PbyxFmXiEBPT4ITbgNA5Cgms3VYcOA-vvnIzzuoyeLGC.woff2';
+        const response = await fetch(fontUrl);
+        const arrayBuffer = await response.arrayBuffer();
+
+        // ArrayBuffer를 Base64로 변환
+        const base64 = btoa(
+            new Uint8Array(arrayBuffer)
+                .reduce((data, byte) => data + String.fromCharCode(byte), '')
+        );
+
+        koreanFontData = base64;
+        koreanFontLoaded = true;
+        return true;
+    } catch (error) {
+        console.error('폰트 로드 실패:', error);
+        return false;
+    }
+}
+
 /**
  * PDF 다운로드 핸들러 (jsPDF + autoTable 사용)
  */
@@ -920,6 +951,9 @@ async function handleDownloadPdf() {
     showLoading('PDF 생성 중...');
 
     try {
+        // 한글 폰트 로드
+        const fontLoaded = await loadKoreanFont();
+
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({
             orientation: 'portrait',
@@ -927,17 +961,22 @@ async function handleDownloadPdf() {
             format: 'a4'
         });
 
+        // 한글 폰트 등록
+        if (fontLoaded && koreanFontData) {
+            doc.addFileToVFS('NotoSansKR.woff2', koreanFontData);
+            doc.addFont('NotoSansKR.woff2', 'NotoSansKR', 'normal');
+            doc.setFont('NotoSansKR');
+        }
+
         const testSheet = state.generatedTest;
         const pageWidth = doc.internal.pageSize.getWidth();
 
         // 제목
         doc.setFontSize(20);
-        doc.setFont(undefined, 'bold');
         doc.text(testSheet.title, pageWidth / 2, 20, { align: 'center' });
 
         // 날짜 및 문제 수
         doc.setFontSize(10);
-        doc.setFont(undefined, 'normal');
         doc.text(`날짜: ${testSheet.date}    총 ${testSheet.totalCount}문제`, pageWidth / 2, 28, { align: 'center' });
 
         // 이름 필드
@@ -961,7 +1000,6 @@ async function handleDownloadPdf() {
             headStyles: {
                 fillColor: [245, 245, 245],
                 textColor: [51, 51, 51],
-                fontStyle: 'bold',
                 halign: 'center'
             },
             columnStyles: {
@@ -973,7 +1011,8 @@ async function handleDownloadPdf() {
                 fontSize: 11,
                 cellPadding: 4,
                 lineColor: [200, 200, 200],
-                lineWidth: 0.3
+                lineWidth: 0.3,
+                font: fontLoaded ? 'NotoSansKR' : undefined
             },
             alternateRowStyles: {
                 fillColor: [250, 250, 250]
